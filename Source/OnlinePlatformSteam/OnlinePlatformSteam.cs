@@ -14,18 +14,23 @@ namespace FlaxEngine.Online.Steam
     /// </summary>
     public sealed class SteamEditorPlugin : EditorPlugin
     {
-        /// <inheritdoc />
-        public override PluginDescription Description => new PluginDescription
-        {
-            Name = "Steam",
-            Category = "Online",
-            Description = "Online platform implementation for Steam.",
-            Author = "Flax",
-            RepositoryUrl = "https://github.com/FlaxEngine/OnlinePlatformSteam",
-            Version = new Version(1, 0),
-        };
-
         private AssetProxy _assetProxy;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SteamEditorPlugin"/> class.
+        /// </summary>
+        public SteamEditorPlugin()
+        {
+            _description = new PluginDescription
+            {
+                Name = "Steam",
+                Category = "Online",
+                Description = "Online platform implementation for Steam.",
+                Author = "Flax",
+                RepositoryUrl = "https://github.com/FlaxEngine/OnlinePlatformSteam",
+                Version = new Version(1, 0),
+            };
+        }
 
         /// <inheritdoc />
         public override void InitializeEditor()
