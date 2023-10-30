@@ -54,7 +54,7 @@ Finally you can use Steam as online platform in your game:
 using FlaxEngine.Online;
 using FlaxEngine.Online.Steam;
 
-var platform = platform = new OnlinePlatformSteam();
+var platform = new OnlinePlatformSteam();
 Online.Initialize(platform);
 ```
 
