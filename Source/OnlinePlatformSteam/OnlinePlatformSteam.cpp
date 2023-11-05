@@ -78,19 +78,20 @@ bool OnlinePlatformSteam::Initialize()
     // Get Steam settings
     const auto settings = SteamSettings::Get();
     LOG(Info, "Initializing Steam API with AppId={0}", settings->AppId);
+#if USE_EDITOR
+    const uint32 appId = settings->AppId ? settings->AppId : 480;
+#else
+    const uint32 appId = settings->AppId;
+#endif
 
 #if USE_EDITOR
     // When running from Editor ensure to place steam appid config file in the root of the project
     const String steamAppIdFile = Globals::ProjectFolder / TEXT("steam_appid.txt");
-    if (!FileSystem::FileExists(steamAppIdFile))
-    {
-        const uint32 appId = settings->AppId ? settings->AppId : 480;
-        File::WriteAllText(steamAppIdFile, StringUtils::ToString(appId), Encoding::ANSI);
-    }
+    File::WriteAllText(steamAppIdFile, StringUtils::ToString(appId), Encoding::ANSI);
 #endif
 
     // Give Steam a chance to relaunch a game via Steam App
-    if (SteamAPI_RestartAppIfNecessary(settings->AppId))
+    if (SteamAPI_RestartAppIfNecessary(appId))
     {
         LOG(Info, "Restarting game via Steam...");
         Engine::RequestExit(0);
