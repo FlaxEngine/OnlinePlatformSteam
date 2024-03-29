@@ -6,6 +6,7 @@
 #include "Engine/Content/Content.h"
 #include "Engine/Content/JsonAsset.h"
 #include "Engine/Core/Log.h"
+#include "Engine/Core/Types/TimeSpan.h"
 #include "Engine/Core/Config/GameSettings.h"
 #include "Engine/Core/Collections/Array.h"
 #include "Engine/Engine/Engine.h"
@@ -30,6 +31,11 @@ extern "C" void __cdecl SteamAPIDebugTextHook(int nSeverity, const char* pchDebu
         LOG(Warning, "[Steam] ", String(pchDebugText));
         break;
     }
+}
+
+DateTime DateTimeFromUnixTimestamp(int32 unixTime)
+{
+    return DateTime(1970, 1, 1) + TimeSpan(static_cast<int64>(unixTime) * TimeSpan::TicksPerSecond);
 }
 
 Guid GetUserId(CSteamID id)
@@ -204,7 +210,7 @@ bool OnlinePlatformSteam::GetAchievements(Array<OnlineAchievement>& achievements
             bool unlocked;
             uint32 unlockTime;
             if (_steamUserStats->GetAchievementAndUnlockTime(name, &unlocked, &unlockTime) && unlocked)
-                achievement.UnlockTime = DateTime::FromUnixTimestamp((int32)unlockTime);
+                achievement.UnlockTime = DateTimeFromUnixTimestamp((int32)unlockTime);
             achievement.Progress = unlocked ? 100.0f : 0.0f;
         }
         return false;
