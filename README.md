@@ -45,7 +45,11 @@ public override void Setup(BuildOptions options)
 
 This will add reference to `OnlinePlatformSteam` module on Windows/Linux/Mac platforms that are supported by Steam.
 
-4. Test it out!
+4. Setup settings
+
+Steam plugin automatically creates `steam_appid.txt` file with Steam AppId (for both Editor and cooked Game). You can add own settings in *Content* window by using *right-click*, then **New -> Settings**, specify name, select **SteamSettings** type and confirm.
+
+5. Test it out!
 
 Finally you can use Steam as online platform in your game:
 
@@ -67,11 +71,7 @@ auto platform = New<OnlinePlatformSteam>();
 Online::Initialize(platform);
 ```
 
-Then use [Online](https://docs.flaxengine.com/manual/networking/online/index.html) system to access online platform (user profile, friends, achievements, cloud saves, etc.). 
-
-5. Setup settings
-
-Steam plugin automatically creates `steam_appid.txt` file with Steam AppId (for both Editor and cooked Game). You can add own settings in *Content* window by using *right-click*, then **New -> Settings**, specify name, select **SteamSettings** type and confirm.
+Then use [Online](https://docs.flaxengine.com/manual/networking/online/index.html) system to access online platform (user profile, friends, achievements, cloud saves, etc.).
 
 ## License
 
