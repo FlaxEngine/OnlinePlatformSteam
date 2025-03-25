@@ -108,7 +108,7 @@ OnlineLeaderboardValueFormats GetLeaderboardValueFormat(ELeaderboardDisplayType 
     switch (value)
     {
     case k_ELeaderboardDisplayTypeNone:
-        return OnlineLeaderboardValueFormats::None;
+        return OnlineLeaderboardValueFormats::Undefined;
     case k_ELeaderboardDisplayTypeNumeric:
         return OnlineLeaderboardValueFormats::Numeric;
     case k_ELeaderboardDisplayTypeTimeSeconds:
@@ -116,14 +116,14 @@ OnlineLeaderboardValueFormats GetLeaderboardValueFormat(ELeaderboardDisplayType 
     case k_ELeaderboardDisplayTypeTimeMilliSeconds:
         return OnlineLeaderboardValueFormats::Milliseconds;
     }
-    return OnlineLeaderboardValueFormats::None;
+    return OnlineLeaderboardValueFormats::Undefined;
 }
 
 ELeaderboardDisplayType GetLeaderboardValueFormat(OnlineLeaderboardValueFormats value)
 {
     switch (value)
     {
-    case OnlineLeaderboardValueFormats::None:
+    case OnlineLeaderboardValueFormats::Undefined:
         return k_ELeaderboardDisplayTypeNone;
     case OnlineLeaderboardValueFormats::Numeric:
         return k_ELeaderboardDisplayTypeNumeric;
