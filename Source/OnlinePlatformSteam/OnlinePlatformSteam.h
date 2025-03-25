@@ -34,6 +34,7 @@ private:
     class ISteamFriends* _steamFriends = nullptr;
     class ISteamUserStats* _steamUserStats = nullptr;
     class ISteamRemoteStorage* _steamRemoteStorage = nullptr;
+    class ISteamUtils* _steamUtils = nullptr;
     bool _hasCurrentStats = false;
     bool _hasModifiedStats = false;
 
@@ -54,11 +55,21 @@ public:
 #endif
     bool GetStat(const StringView& name, float& value, User* localUser) override;
     bool SetStat(const StringView& name, float value, User* localUser) override;
-    bool GetSaveGame(const StringView& name, API_PARAM(Out) Array<byte, HeapAllocation>& data, User* localUser) override;
+    bool GetLeaderboard(const StringView& name, OnlineLeaderboard& value, User* localUser) override;
+    bool GetOrCreateLeaderboard(const StringView& name, OnlineLeaderboardSortModes sortMode, OnlineLeaderboardValueFormats valueFormat, OnlineLeaderboard& value, User* localUser) override;
+    bool GetLeaderboardEntries(const OnlineLeaderboard& leaderboard, Array<OnlineLeaderboardEntry, HeapAllocation>& entries, int32 start, int32 count) override;
+    bool GetLeaderboardEntriesAroundUser(const OnlineLeaderboard& leaderboard, Array<OnlineLeaderboardEntry, HeapAllocation>& entries, int32 start, int32 count) override;
+    bool GetLeaderboardEntriesForFriends(const OnlineLeaderboard& leaderboard, Array<OnlineLeaderboardEntry, HeapAllocation>& entries) override;
+    bool GetLeaderboardEntriesForUsers(const OnlineLeaderboard& leaderboard, Array<OnlineLeaderboardEntry, HeapAllocation>& entries, const Array<OnlineUser, HeapAllocation>& users) override;
+    bool SetLeaderboardEntry(const OnlineLeaderboard& leaderboard, int32 score, bool keepBest) override;
+    bool GetSaveGame(const StringView& name, Array<byte, HeapAllocation>& data, User* localUser) override;
     bool SetSaveGame(const StringView& name, const Span<byte>& data, User* localUser) override;
 
 private:
     bool RequestCurrentStats();
+    bool GetLeaderboard(uint64 call, OnlineLeaderboard& leaderboard) const;
+    uint64 GetLeaderboardHandle(const OnlineLeaderboard& leaderboard);
+    bool GetLeaderboardEntries(uint64 call, Array<OnlineLeaderboardEntry, HeapAllocation>& entries) const;
     void OnUpdate();
 };
 

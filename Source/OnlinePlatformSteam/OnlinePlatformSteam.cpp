@@ -11,6 +11,7 @@
 #include "Engine/Core/Collections/Array.h"
 #include "Engine/Engine/Engine.h"
 #include "Engine/Utilities/StringConverter.h"
+#include "Engine/Profiler/ProfilerCPU.h"
 #if USE_EDITOR
 #include "Engine/Engine/Globals.h"
 #include "Engine/Platform/FileSystem.h"
@@ -74,6 +75,91 @@ OnlinePresenceStates GetUserPresence(EPersonaState state)
     }
 }
 
+OnlineLeaderboardSortModes GetLeaderboardSortMode(ELeaderboardSortMethod value)
+{
+    switch (value)
+    {
+    case k_ELeaderboardSortMethodNone:
+        return OnlineLeaderboardSortModes::None;
+    case k_ELeaderboardSortMethodAscending:
+        return OnlineLeaderboardSortModes::Ascending;
+    case k_ELeaderboardSortMethodDescending:
+        return OnlineLeaderboardSortModes::Descending;
+    }
+    return OnlineLeaderboardSortModes::None;
+}
+
+ELeaderboardSortMethod GetLeaderboardSortMode(OnlineLeaderboardSortModes value)
+{
+    switch (value)
+    {
+    case OnlineLeaderboardSortModes::None:
+        return k_ELeaderboardSortMethodNone;
+    case OnlineLeaderboardSortModes::Ascending:
+        return k_ELeaderboardSortMethodAscending;
+    case OnlineLeaderboardSortModes::Descending:
+        return k_ELeaderboardSortMethodDescending;
+    }
+    return k_ELeaderboardSortMethodNone;
+}
+
+OnlineLeaderboardValueFormats GetLeaderboardValueFormat(ELeaderboardDisplayType value)
+{
+    switch (value)
+    {
+    case k_ELeaderboardDisplayTypeNone:
+        return OnlineLeaderboardValueFormats::None;
+    case k_ELeaderboardDisplayTypeNumeric:
+        return OnlineLeaderboardValueFormats::Numeric;
+    case k_ELeaderboardDisplayTypeTimeSeconds:
+        return OnlineLeaderboardValueFormats::Seconds;
+    case k_ELeaderboardDisplayTypeTimeMilliSeconds:
+        return OnlineLeaderboardValueFormats::Milliseconds;
+    }
+    return OnlineLeaderboardValueFormats::None;
+}
+
+ELeaderboardDisplayType GetLeaderboardValueFormat(OnlineLeaderboardValueFormats value)
+{
+    switch (value)
+    {
+    case OnlineLeaderboardValueFormats::None:
+        return k_ELeaderboardDisplayTypeNone;
+    case OnlineLeaderboardValueFormats::Numeric:
+        return k_ELeaderboardDisplayTypeNumeric;
+    case OnlineLeaderboardValueFormats::Seconds:
+        return k_ELeaderboardDisplayTypeTimeSeconds;
+    case OnlineLeaderboardValueFormats::Milliseconds:
+        return k_ELeaderboardDisplayTypeTimeMilliSeconds;
+    }
+    return k_ELeaderboardDisplayTypeNone;
+}
+
+template <typename Result>
+bool WaitForCall(ISteamUtils* steamUtils, SteamAPICall_t call, Result& result)
+{
+    // Wait for the call
+    if (call == k_uAPICallInvalid || !steamUtils)
+        return true;
+    PROFILE_CPU();
+    bool failed = false;
+    while (!Engine::ShouldExit() && !steamUtils->IsAPICallCompleted(call, &failed) && !failed)
+    {
+        Platform::Sleep(1);
+    }
+    if (failed)
+    {
+        ESteamAPICallFailure failure = steamUtils->GetAPICallFailureReason(call);
+        return true;
+    }
+
+    // Get result
+    if (!steamUtils->GetAPICallResult(call, &result, sizeof(result), result.k_iCallback, &failed))
+        return true;
+
+    return false;
+}
+
 OnlinePlatformSteam::OnlinePlatformSteam(const SpawnParams& params)
     : ScriptingObject(params)
 {
@@ -116,6 +202,7 @@ bool OnlinePlatformSteam::Initialize()
     GET_STEAM_API(_steamFriends, SteamFriends);
     GET_STEAM_API(_steamUserStats, SteamUserStats);
     GET_STEAM_API(_steamRemoteStorage, SteamRemoteStorage);
+    GET_STEAM_API(_steamUtils, SteamUtils);
 #undef GET_STEAM_API
 
     _steamClient->SetWarningMessageHook(&SteamAPIDebugTextHook);
@@ -133,6 +220,7 @@ void OnlinePlatformSteam::Deinitialize()
     _steamFriends = nullptr;
     _steamUserStats = nullptr;
     _steamRemoteStorage = nullptr;
+    _steamUtils = nullptr;
     _hasCurrentStats = false;
     _hasModifiedStats = false;
     Engine::LateUpdate.Unbind<OnlinePlatformSteam, &OnlinePlatformSteam::OnUpdate>(this);
@@ -261,7 +349,7 @@ bool OnlinePlatformSteam::GetStat(const StringView& name, float& value, User* lo
 {
     if (_steamUserStats && _steamUser->BLoggedOn() && RequestCurrentStats())
     {
-        const StringAsANSI<> nameStr(name.Get(), name.Length());
+        const StringAsANSI<k_cchStatNameMax> nameStr(name.Get(), name.Length());
         return !_steamUserStats->GetStat(nameStr.Get(), &value);
     }
     return true;
@@ -271,7 +359,7 @@ bool OnlinePlatformSteam::SetStat(const StringView& name, float value, User* loc
 {
     if (_steamUserStats && _steamUser->BLoggedOn() && RequestCurrentStats())
     {
-        const StringAsANSI<> nameStr(name.Get(), name.Length());
+        const StringAsANSI<k_cchStatNameMax> nameStr(name.Get(), name.Length());
         if (_steamUserStats->SetStat(nameStr.Get(), value))
         {
             _hasModifiedStats = true;
@@ -281,8 +369,89 @@ bool OnlinePlatformSteam::SetStat(const StringView& name, float value, User* loc
     return true;
 }
 
+bool OnlinePlatformSteam::GetLeaderboard(const StringView& name, OnlineLeaderboard& value, User* localUser)
+{
+    if (_steamUserStats && _steamUser->BLoggedOn() && RequestCurrentStats())
+    {
+        const StringAsANSI<k_cchLeaderboardNameMax> nameStr(name.Get(), name.Length());
+        SteamAPICall_t call = _steamUserStats->FindLeaderboard(nameStr.Get());
+        value.Name = name;
+        return GetLeaderboard(call, value);
+    }
+    return true;
+}
+
+bool OnlinePlatformSteam::GetOrCreateLeaderboard(const StringView& name, OnlineLeaderboardSortModes sortMode, OnlineLeaderboardValueFormats valueFormat, OnlineLeaderboard& value, User* localUser)
+{
+    if (_steamUserStats && _steamUser->BLoggedOn() && RequestCurrentStats())
+    {
+        const StringAsANSI<k_cchLeaderboardNameMax> nameStr(name.Get(), name.Length());
+        const auto sortMethod = GetLeaderboardSortMode(sortMode);
+        const auto displayMode = GetLeaderboardValueFormat(valueFormat);
+        SteamAPICall_t call = _steamUserStats->FindOrCreateLeaderboard(nameStr.Get(), sortMethod, displayMode);
+        value.Name = name;
+        return GetLeaderboard(call, value);
+    }
+    return true;
+}
+
+bool OnlinePlatformSteam::GetLeaderboardEntries(const OnlineLeaderboard& leaderboard, Array<OnlineLeaderboardEntry>& entries, int32 start, int32 count)
+{
+    if (SteamLeaderboard_t steamLeaderboard = GetLeaderboardHandle(leaderboard))
+    {
+        SteamAPICall_t call = _steamUserStats->DownloadLeaderboardEntries(steamLeaderboard, k_ELeaderboardDataRequestGlobal, start + 1, start + count);
+        return GetLeaderboardEntries(call, entries);
+    }
+    return true;
+}
+
+bool OnlinePlatformSteam::GetLeaderboardEntriesAroundUser(const OnlineLeaderboard& leaderboard, Array<OnlineLeaderboardEntry>& entries, int32 start, int32 count)
+{
+    if (SteamLeaderboard_t steamLeaderboard = GetLeaderboardHandle(leaderboard))
+    {
+        SteamAPICall_t call = _steamUserStats->DownloadLeaderboardEntries(steamLeaderboard, k_ELeaderboardDataRequestGlobalAroundUser, start, start + count);
+        return GetLeaderboardEntries(call, entries);
+    }
+    return true;
+}
+
+bool OnlinePlatformSteam::GetLeaderboardEntriesForFriends(const OnlineLeaderboard& leaderboard, Array<OnlineLeaderboardEntry>& entries)
+{
+    if (SteamLeaderboard_t steamLeaderboard = GetLeaderboardHandle(leaderboard))
+    {
+        SteamAPICall_t call = _steamUserStats->DownloadLeaderboardEntries(steamLeaderboard, k_ELeaderboardDataRequestFriends, 0, 0);
+        return GetLeaderboardEntries(call, entries);
+    }
+    return true;
+}
+
+bool OnlinePlatformSteam::GetLeaderboardEntriesForUsers(const OnlineLeaderboard& leaderboard, Array<OnlineLeaderboardEntry>& entries, const Array<OnlineUser>& users)
+{
+    if (SteamLeaderboard_t steamLeaderboard = GetLeaderboardHandle(leaderboard))
+    {
+        Array<CSteamID, InlinedAllocation<8>> steamUsers;
+        steamUsers.Resize(users.Count());
+        for (int32 i = 0; i < users.Count(); i++)
+            steamUsers[i] = GetSteamId(users[i].Id);
+        SteamAPICall_t call = _steamUserStats->DownloadLeaderboardEntriesForUsers(steamLeaderboard, steamUsers.Get(), steamUsers.Count());
+        return GetLeaderboardEntries(call, entries);
+    }
+    return true;
+}
+
+bool OnlinePlatformSteam::SetLeaderboardEntry(const OnlineLeaderboard& leaderboard, int32 score, bool keepBest)
+{
+    if (SteamLeaderboard_t steamLeaderboard = GetLeaderboardHandle(leaderboard))
+    {
+        SteamAPICall_t call = _steamUserStats->UploadLeaderboardScore(steamLeaderboard, keepBest ? k_ELeaderboardUploadScoreMethodKeepBest : k_ELeaderboardUploadScoreMethodForceUpdate, score, nullptr, 0);
+        return call == 0;
+    }
+    return true;
+}
+
 bool OnlinePlatformSteam::GetSaveGame(const StringView& name, Array<byte, HeapAllocation>& data, User* localUser)
 {
+    PROFILE_CPU();
     if (_steamRemoteStorage)
     {
         const StringAsANSI<> nameStr(name.Get(), name.Length());
@@ -308,6 +477,7 @@ bool OnlinePlatformSteam::GetSaveGame(const StringView& name, Array<byte, HeapAl
 
 bool OnlinePlatformSteam::SetSaveGame(const StringView& name, const Span<byte>& data, User* localUser)
 {
+    PROFILE_CPU();
     if (_steamRemoteStorage)
     {
         const StringAsANSI<> nameStr(name.Get(), name.Length());
@@ -334,6 +504,77 @@ bool OnlinePlatformSteam::RequestCurrentStats()
         return _steamUserStats->RequestCurrentStats();
     }
     return true;
+}
+
+bool OnlinePlatformSteam::GetLeaderboard(SteamAPICall_t call, OnlineLeaderboard& leaderboard) const
+{
+    LeaderboardFindResult_t result;
+    if (WaitForCall(_steamUtils, call, result))
+        return true;
+    if (result.m_bLeaderboardFound == 0)
+    {
+        LOG(Error, "Steam leaderboard '{}' not found", leaderboard.Name);
+        return true;
+    }
+
+    // Get leaderboard properties
+    leaderboard.Identifier = StringUtils::ToString(result.m_hSteamLeaderboard);
+    leaderboard.Name = _steamUserStats->GetLeaderboardName(result.m_hSteamLeaderboard);
+    leaderboard.SortMode = GetLeaderboardSortMode(_steamUserStats->GetLeaderboardSortMethod(result.m_hSteamLeaderboard));
+    leaderboard.ValueFormat = GetLeaderboardValueFormat(_steamUserStats->GetLeaderboardDisplayType(result.m_hSteamLeaderboard));
+    leaderboard.EntriesCount = _steamUserStats->GetLeaderboardEntryCount(result.m_hSteamLeaderboard);
+    return false;
+}
+
+uint64 OnlinePlatformSteam::GetLeaderboardHandle(const OnlineLeaderboard& leaderboard)
+{
+    static_assert(sizeof(uint64) == sizeof(SteamLeaderboard_t), "Update API.");
+    SteamLeaderboard_t steamLeaderboard = 0;
+    if (_steamUserStats &&
+        _steamUser->BLoggedOn() &&
+        RequestCurrentStats() &&
+        !StringUtils::Parse(leaderboard.Identifier.Get(), leaderboard.Identifier.Length(), &steamLeaderboard) &&
+        steamLeaderboard != 0)
+    {
+        return steamLeaderboard;
+    }
+    return 0;
+}
+
+bool OnlinePlatformSteam::GetLeaderboardEntries(SteamAPICall_t call, Array<OnlineLeaderboardEntry>& entries) const
+{
+    LeaderboardScoresDownloaded_t result;
+    if (WaitForCall(_steamUtils, call, result))
+        return true;
+
+    // Get entries
+    entries.Resize(result.m_cEntryCount);
+    for (int32 i = 0; i < result.m_cEntryCount; i++)
+    {
+        LeaderboardEntry_t e = {};
+        _steamUserStats->GetDownloadedLeaderboardEntry(result.m_hSteamLeaderboardEntries, i, &e, nullptr, 0);
+
+        auto& entry = entries[i];
+        entry.User.Id = GetUserId(e.m_steamIDUser);
+        entry.User.PresenceState = OnlinePresenceStates::Offline;
+        if (e.m_steamIDUser == _steamUser->GetSteamID())
+        {
+            // Local user
+            entry.User.Id = GetUserId(_steamUser->GetSteamID());
+            entry.User.Name = _steamFriends->GetPersonaName();
+            entry.User.PresenceState = GetUserPresence(_steamFriends->GetPersonaState());
+        }
+        else if (_steamFriends)
+        {
+            // Friend?
+            entry.User.Name = _steamFriends->GetFriendPersonaName(e.m_steamIDUser);
+            entry.User.PresenceState = GetUserPresence(_steamFriends->GetFriendPersonaState(e.m_steamIDUser));
+        }
+        entry.Rank = e.m_nGlobalRank;
+        entry.Score = e.m_nScore;
+    }
+
+    return false;
 }
 
 void OnlinePlatformSteam::OnUpdate()
