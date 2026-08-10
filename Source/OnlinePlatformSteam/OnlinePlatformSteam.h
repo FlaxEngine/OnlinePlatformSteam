@@ -11,7 +11,7 @@
 /// <summary>
 /// The settings for Steam online platform.
 /// </summary>
-API_CLASS(Namespace="FlaxEngine.Online.Steam") class ONLINEPLATFORMSTEAM_API SteamSettings : public SettingsBase
+API_CLASS(Namespace="FlaxEngine.Online") class ONLINEPLATFORMSTEAM_API SteamSettings : public SettingsBase
 {
     API_AUTO_SERIALIZATION();
     DECLARE_SCRIPTING_TYPE_NO_SPAWN(SteamSettings);
@@ -25,7 +25,7 @@ public:
 /// <summary>
 /// The online platform implementation for Steam.
 /// </summary>
-API_CLASS(Sealed, Namespace="FlaxEngine.Online.Steam") class ONLINEPLATFORMSTEAM_API OnlinePlatformSteam : public ScriptingObject, public IOnlinePlatform
+API_CLASS(Sealed, Namespace="FlaxEngine.Online") class ONLINEPLATFORMSTEAM_API OnlinePlatformSteam : public ScriptingObject, public IOnlinePlatform
 {
     DECLARE_SCRIPTING_TYPE(OnlinePlatformSteam);
 private:
