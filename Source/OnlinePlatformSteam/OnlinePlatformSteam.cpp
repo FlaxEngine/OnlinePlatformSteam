@@ -5,6 +5,7 @@
 #include "OnlinePlatformSteam.h"
 #include "Engine/Content/Content.h"
 #include "Engine/Content/JsonAsset.h"
+#include "Engine/Content/Assets/Texture.h"
 #include "Engine/Core/Log.h"
 #include "Engine/Core/Types/TimeSpan.h"
 #include "Engine/Core/Config/GameSettings.h"
@@ -254,6 +255,36 @@ bool OnlinePlatformSteam::GetUser(OnlineUser& user, User* localUser)
         user.Name = _steamFriends->GetPersonaName();
         user.PresenceState = GetUserPresence(_steamFriends->GetPersonaState());
         return false;
+    }
+    return true;
+}
+
+bool OnlinePlatformSteam::GetUserAvarar(const OnlineUser& user, Texture*& avatar)
+{
+    avatar = nullptr;
+    if (_steamFriends && _steamUtils)
+    {
+        CSteamID userId = GetSteamId(user.Id);
+        const int steamAvatar = _steamFriends->GetMediumFriendAvatar(userId);
+        if (steamAvatar > 0)
+        {
+            uint32 width = 0, height = 0;
+            if (_steamUtils->GetImageSize(steamAvatar, &width, &height) && width > 0 && height > 0)
+            {
+                Texture::InitData initData;
+                initData.Width = width;
+                initData.Height = height;
+                initData.Format = PixelFormat::R8G8B8A8_UNorm;
+                auto& mip = initData.Mips.AddOne();
+                mip.RowPitch = width * 4;
+                mip.SlicePitch = height * mip.RowPitch;
+                mip.Data.Allocate(mip.SlicePitch);
+                _steamUtils->GetImageRGBA(steamAvatar, mip.Data.Get(), mip.Data.Length());
+                avatar = Content::CreateVirtualAsset<Texture>();
+                avatar->Init(MoveTemp(initData));
+                return false;
+            }
+        }
     }
     return true;
 }
