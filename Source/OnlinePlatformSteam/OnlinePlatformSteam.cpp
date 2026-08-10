@@ -24,13 +24,14 @@ IMPLEMENT_GAME_SETTINGS_GETTER(SteamSettings, "Steam");
 
 extern "C" void __cdecl SteamAPIDebugTextHook(int nSeverity, const char* pchDebugText)
 {
+    StringAsUTF16<> text(pchDebugText);
     switch (nSeverity)
     {
     case 0:
-        LOG(Info, "[Steam] ", String(pchDebugText));
+        LOG(Info, "[Steam] {}", text.Get());
         break;
     default:
-        LOG(Warning, "[Steam] ", String(pchDebugText));
+        LOG(Warning, "[Steam] {}", text.Get());
         break;
     }
 }
