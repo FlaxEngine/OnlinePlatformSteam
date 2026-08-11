@@ -65,6 +65,9 @@ public:
     bool SetLeaderboardEntry(const OnlineLeaderboard& leaderboard, int32 score, bool keepBest) override;
     bool GetSaveGame(const StringView& name, Array<byte, HeapAllocation>& data, User* localUser) override;
     bool SetSaveGame(const StringView& name, const Span<byte>& data, User* localUser) override;
+    bool OpenOverlay(OnlineOverlayDialog dialog) override;
+    bool OpenOverlayUrl(const StringView& url, OnlineOverlayDialog dialog) override;
+    bool OpenOverlayUser(const OnlineUser& user, OnlineOverlayDialog dialog) override;
 
 private:
     bool RequestCurrentStats();

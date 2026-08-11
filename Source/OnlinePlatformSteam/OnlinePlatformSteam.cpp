@@ -578,6 +578,95 @@ bool OnlinePlatformSteam::SetSaveGame(const StringView& name, const Span<byte>& 
     return true;
 }
 
+bool OnlinePlatformSteam::OpenOverlay(OnlineOverlayDialog dialog)
+{
+    PROFILE_CPU();
+    PROFILE_MEM(Online);
+    if (_steamFriends)
+    {
+        switch (dialog)
+        {
+        case OnlineOverlayDialog::Website:
+            _steamFriends->ActivateGameOverlayToWebPage("");
+            break;
+        case OnlineOverlayDialog::Profile:
+            if (_steamUser && _steamUser->BLoggedOn())
+            {
+                _steamFriends->ActivateGameOverlayToUser("steamid", _steamUser->GetSteamID());
+                return false;
+            }
+            return true;
+        case OnlineOverlayDialog::Achievements:
+            _steamFriends->ActivateGameOverlay("achievements");
+            break;
+        case OnlineOverlayDialog::Stats:
+            _steamFriends->ActivateGameOverlay("stats");
+            break;
+        case OnlineOverlayDialog::Friends:
+            _steamFriends->ActivateGameOverlay("friends");
+            break;
+        case OnlineOverlayDialog::Chat:
+            _steamFriends->ActivateGameOverlay("chat");
+            break;
+        }
+        return false;
+    }
+    return true;
+}
+
+bool OnlinePlatformSteam::OpenOverlayUrl(const StringView& url, OnlineOverlayDialog dialog)
+{
+    PROFILE_CPU();
+    PROFILE_MEM(Online);
+    if (_steamFriends)
+    {
+        StringAsANSI<> urlAnsi(url.Get(), url.Length());
+        switch (dialog)
+        {
+        case OnlineOverlayDialog::Website:
+            _steamFriends->ActivateGameOverlayToWebPage(urlAnsi.Get());
+            break;
+        }
+        return false;
+    }
+    return true;
+}
+
+bool OnlinePlatformSteam::OpenOverlayUser(const OnlineUser& user, OnlineOverlayDialog dialog)
+{
+    PROFILE_CPU();
+    PROFILE_MEM(Online);
+    if (_steamFriends)
+    {
+        CSteamID userId = GetSteamId(user.Id);
+        switch (dialog)
+        {
+        case OnlineOverlayDialog::Login:
+            break;
+        case OnlineOverlayDialog::Website:
+            _steamFriends->ActivateGameOverlayToWebPage("");
+            break;
+        case OnlineOverlayDialog::Profile:
+            _steamFriends->ActivateGameOverlayToUser("steamid", userId);
+            break;
+        case OnlineOverlayDialog::Achievements:
+            _steamFriends->ActivateGameOverlayToUser("achievements", userId);
+            break;
+        case OnlineOverlayDialog::Stats:
+            _steamFriends->ActivateGameOverlayToUser("stats", userId);
+            break;
+        case OnlineOverlayDialog::Friends:
+            _steamFriends->ActivateGameOverlayToUser("friends", userId);
+            break;
+        case OnlineOverlayDialog::Chat:
+            _steamFriends->ActivateGameOverlayToUser("chat", userId);
+            break;
+        }
+        return false;
+    }
+    return true;
+}
+
 bool OnlinePlatformSteam::RequestCurrentStats()
 {
     PROFILE_CPU();
