@@ -13,6 +13,7 @@
 #include "Engine/Engine/Engine.h"
 #include "Engine/Utilities/StringConverter.h"
 #include "Engine/Profiler/ProfilerCPU.h"
+#include "Engine/Profiler/ProfilerMemory.h"
 #if USE_EDITOR
 #include "Engine/Engine/Globals.h"
 #include "Engine/Platform/FileSystem.h"
@@ -169,6 +170,9 @@ OnlinePlatformSteam::OnlinePlatformSteam(const SpawnParams& params)
 
 bool OnlinePlatformSteam::Initialize()
 {
+    PROFILE_CPU();
+    PROFILE_MEM(Online);
+
     // Get Steam settings
     const auto settings = SteamSettings::Get();
     LOG(Info, "Initializing Steam API with AppId={0}", settings->AppId);
@@ -217,6 +221,7 @@ void OnlinePlatformSteam::Deinitialize()
 {
     if (!_steamClient)
         return;
+    PROFILE_CPU();
     _steamClient = nullptr;
     _steamUser = nullptr;
     _steamFriends = nullptr;
@@ -231,6 +236,7 @@ void OnlinePlatformSteam::Deinitialize()
 
 bool OnlinePlatformSteam::UserLogin(User* localUser)
 {
+    PROFILE_CPU();
     if (_steamUser && _steamUser->BLoggedOn())
     {
         return false;
@@ -245,11 +251,13 @@ bool OnlinePlatformSteam::UserLogout(User* localUser)
 
 bool OnlinePlatformSteam::GetUserLoggedIn(User* localUser)
 {
+    PROFILE_CPU();
     return _steamUser && _steamUser->BLoggedOn();
 }
 
 bool OnlinePlatformSteam::GetUser(OnlineUser& user, User* localUser)
 {
+    PROFILE_CPU();
     if (_steamUser && _steamUser->BLoggedOn())
     {
         user.Id = GetUserId(_steamUser->GetSteamID());
@@ -262,6 +270,8 @@ bool OnlinePlatformSteam::GetUser(OnlineUser& user, User* localUser)
 
 bool OnlinePlatformSteam::GetUserAvarar(const OnlineUser& user, Texture*& avatar)
 {
+    PROFILE_CPU();
+    PROFILE_MEM(Online);
     avatar = nullptr;
     if (_steamFriends && _steamUtils)
     {
@@ -292,6 +302,8 @@ bool OnlinePlatformSteam::GetUserAvarar(const OnlineUser& user, Texture*& avatar
 
 bool OnlinePlatformSteam::GetFriends(Array<OnlineUser>& friends, User* localUser)
 {
+    PROFILE_CPU();
+    PROFILE_MEM(Online);
     if (_steamUser && _steamUser->BLoggedOn())
     {
         const int32 friendsCount = _steamFriends->GetFriendCount(k_EFriendFlagImmediate);
@@ -311,6 +323,8 @@ bool OnlinePlatformSteam::GetFriends(Array<OnlineUser>& friends, User* localUser
 
 bool OnlinePlatformSteam::GetAchievements(Array<OnlineAchievement>& achievements, User* localUser)
 {
+    PROFILE_CPU();
+    PROFILE_MEM(Online);
     if (_steamUserStats && _steamUser->BLoggedOn() && RequestCurrentStats())
     {
         const int32 count = _steamUserStats->GetNumAchievements();
@@ -340,6 +354,8 @@ bool OnlinePlatformSteam::GetAchievements(Array<OnlineAchievement>& achievements
 
 bool OnlinePlatformSteam::UnlockAchievement(const StringView& name, User* localUser)
 {
+    PROFILE_CPU();
+    PROFILE_MEM(Online);
     if (_steamUserStats && _steamUser->BLoggedOn() && RequestCurrentStats())
     {
         // TODO: map game-specific name into Steam achievement name
@@ -356,8 +372,20 @@ bool OnlinePlatformSteam::UnlockAchievement(const StringView& name, User* localU
 
 bool OnlinePlatformSteam::UnlockAchievementProgress(const StringView& name, float progress, User* localUser)
 {
-    if (progress >= 100.0f)
-        return UnlockAchievement(name, localUser);
+    PROFILE_CPU();
+    PROFILE_MEM(Online);
+    if (_steamUserStats && _steamUser->BLoggedOn() && RequestCurrentStats())
+    {
+        // TODO: map game-specific name into Steam achievement name
+        const StringAsANSI<> nameStr(name.Get(), name.Length());
+        _steamUserStats->IndicateAchievementProgress(nameStr.Get(), (int32)progress, 100);
+        if (progress >= 100.0f)
+        {
+            // Unlock achievement
+            _steamUserStats->SetAchievement(nameStr.Get());
+        }
+        return false;
+    }
     return false;
 }
 
@@ -365,6 +393,8 @@ bool OnlinePlatformSteam::UnlockAchievementProgress(const StringView& name, floa
 
 bool OnlinePlatformSteam::ResetAchievements(User* localUser)
 {
+    PROFILE_CPU();
+    PROFILE_MEM(Online);
     if (_steamUserStats && _steamUser->BLoggedOn() && RequestCurrentStats())
     {
         _hasCurrentStats = false;
@@ -379,6 +409,8 @@ bool OnlinePlatformSteam::ResetAchievements(User* localUser)
 
 bool OnlinePlatformSteam::GetStat(const StringView& name, float& value, User* localUser)
 {
+    PROFILE_CPU();
+    PROFILE_MEM(Online);
     if (_steamUserStats && _steamUser->BLoggedOn() && RequestCurrentStats())
     {
         const StringAsANSI<k_cchStatNameMax> nameStr(name.Get(), name.Length());
@@ -389,6 +421,8 @@ bool OnlinePlatformSteam::GetStat(const StringView& name, float& value, User* lo
 
 bool OnlinePlatformSteam::SetStat(const StringView& name, float value, User* localUser)
 {
+    PROFILE_CPU();
+    PROFILE_MEM(Online);
     if (_steamUserStats && _steamUser->BLoggedOn() && RequestCurrentStats())
     {
         const StringAsANSI<k_cchStatNameMax> nameStr(name.Get(), name.Length());
@@ -403,6 +437,8 @@ bool OnlinePlatformSteam::SetStat(const StringView& name, float value, User* loc
 
 bool OnlinePlatformSteam::GetLeaderboard(const StringView& name, OnlineLeaderboard& value, User* localUser)
 {
+    PROFILE_CPU();
+    PROFILE_MEM(Online);
     if (_steamUserStats && _steamUser->BLoggedOn() && RequestCurrentStats())
     {
         const StringAsANSI<k_cchLeaderboardNameMax> nameStr(name.Get(), name.Length());
@@ -415,6 +451,8 @@ bool OnlinePlatformSteam::GetLeaderboard(const StringView& name, OnlineLeaderboa
 
 bool OnlinePlatformSteam::GetOrCreateLeaderboard(const StringView& name, OnlineLeaderboardSortModes sortMode, OnlineLeaderboardValueFormats valueFormat, OnlineLeaderboard& value, User* localUser)
 {
+    PROFILE_CPU();
+    PROFILE_MEM(Online);
     if (_steamUserStats && _steamUser->BLoggedOn() && RequestCurrentStats())
     {
         const StringAsANSI<k_cchLeaderboardNameMax> nameStr(name.Get(), name.Length());
@@ -429,6 +467,8 @@ bool OnlinePlatformSteam::GetOrCreateLeaderboard(const StringView& name, OnlineL
 
 bool OnlinePlatformSteam::GetLeaderboardEntries(const OnlineLeaderboard& leaderboard, Array<OnlineLeaderboardEntry>& entries, int32 start, int32 count)
 {
+    PROFILE_CPU();
+    PROFILE_MEM(Online);
     if (SteamLeaderboard_t steamLeaderboard = GetLeaderboardHandle(leaderboard))
     {
         SteamAPICall_t call = _steamUserStats->DownloadLeaderboardEntries(steamLeaderboard, k_ELeaderboardDataRequestGlobal, start + 1, start + count);
@@ -439,6 +479,8 @@ bool OnlinePlatformSteam::GetLeaderboardEntries(const OnlineLeaderboard& leaderb
 
 bool OnlinePlatformSteam::GetLeaderboardEntriesAroundUser(const OnlineLeaderboard& leaderboard, Array<OnlineLeaderboardEntry>& entries, int32 start, int32 count)
 {
+    PROFILE_CPU();
+    PROFILE_MEM(Online);
     if (SteamLeaderboard_t steamLeaderboard = GetLeaderboardHandle(leaderboard))
     {
         SteamAPICall_t call = _steamUserStats->DownloadLeaderboardEntries(steamLeaderboard, k_ELeaderboardDataRequestGlobalAroundUser, start, start + count);
@@ -449,6 +491,8 @@ bool OnlinePlatformSteam::GetLeaderboardEntriesAroundUser(const OnlineLeaderboar
 
 bool OnlinePlatformSteam::GetLeaderboardEntriesForFriends(const OnlineLeaderboard& leaderboard, Array<OnlineLeaderboardEntry>& entries)
 {
+    PROFILE_CPU();
+    PROFILE_MEM(Online);
     if (SteamLeaderboard_t steamLeaderboard = GetLeaderboardHandle(leaderboard))
     {
         SteamAPICall_t call = _steamUserStats->DownloadLeaderboardEntries(steamLeaderboard, k_ELeaderboardDataRequestFriends, 0, 0);
@@ -459,6 +503,8 @@ bool OnlinePlatformSteam::GetLeaderboardEntriesForFriends(const OnlineLeaderboar
 
 bool OnlinePlatformSteam::GetLeaderboardEntriesForUsers(const OnlineLeaderboard& leaderboard, Array<OnlineLeaderboardEntry>& entries, const Array<OnlineUser>& users)
 {
+    PROFILE_CPU();
+    PROFILE_MEM(Online);
     if (SteamLeaderboard_t steamLeaderboard = GetLeaderboardHandle(leaderboard))
     {
         Array<CSteamID, InlinedAllocation<8>> steamUsers;
@@ -473,6 +519,8 @@ bool OnlinePlatformSteam::GetLeaderboardEntriesForUsers(const OnlineLeaderboard&
 
 bool OnlinePlatformSteam::SetLeaderboardEntry(const OnlineLeaderboard& leaderboard, int32 score, bool keepBest)
 {
+    PROFILE_CPU();
+    PROFILE_MEM(Online);
     if (SteamLeaderboard_t steamLeaderboard = GetLeaderboardHandle(leaderboard))
     {
         SteamAPICall_t call = _steamUserStats->UploadLeaderboardScore(steamLeaderboard, keepBest ? k_ELeaderboardUploadScoreMethodKeepBest : k_ELeaderboardUploadScoreMethodForceUpdate, score, nullptr, 0);
@@ -484,6 +532,7 @@ bool OnlinePlatformSteam::SetLeaderboardEntry(const OnlineLeaderboard& leaderboa
 bool OnlinePlatformSteam::GetSaveGame(const StringView& name, Array<byte, HeapAllocation>& data, User* localUser)
 {
     PROFILE_CPU();
+    PROFILE_MEM(Online);
     if (_steamRemoteStorage)
     {
         const StringAsANSI<> nameStr(name.Get(), name.Length());
@@ -510,6 +559,7 @@ bool OnlinePlatformSteam::GetSaveGame(const StringView& name, Array<byte, HeapAl
 bool OnlinePlatformSteam::SetSaveGame(const StringView& name, const Span<byte>& data, User* localUser)
 {
     PROFILE_CPU();
+    PROFILE_MEM(Online);
     if (_steamRemoteStorage)
     {
         const StringAsANSI<> nameStr(name.Get(), name.Length());
@@ -530,6 +580,8 @@ bool OnlinePlatformSteam::SetSaveGame(const StringView& name, const Span<byte>& 
 
 bool OnlinePlatformSteam::RequestCurrentStats()
 {
+    PROFILE_CPU();
+    PROFILE_MEM(Online);
     if (!_hasCurrentStats)
     {
         _hasCurrentStats = true;
@@ -540,6 +592,7 @@ bool OnlinePlatformSteam::RequestCurrentStats()
 
 bool OnlinePlatformSteam::GetLeaderboard(SteamAPICall_t call, OnlineLeaderboard& leaderboard) const
 {
+    PROFILE_CPU();
     LeaderboardFindResult_t result;
     if (WaitForCall(_steamUtils, call, result))
         return true;
@@ -560,6 +613,7 @@ bool OnlinePlatformSteam::GetLeaderboard(SteamAPICall_t call, OnlineLeaderboard&
 
 uint64 OnlinePlatformSteam::GetLeaderboardHandle(const OnlineLeaderboard& leaderboard)
 {
+    PROFILE_CPU();
     static_assert(sizeof(uint64) == sizeof(SteamLeaderboard_t), "Update API.");
     SteamLeaderboard_t steamLeaderboard = 0;
     if (_steamUserStats &&
@@ -575,6 +629,7 @@ uint64 OnlinePlatformSteam::GetLeaderboardHandle(const OnlineLeaderboard& leader
 
 bool OnlinePlatformSteam::GetLeaderboardEntries(SteamAPICall_t call, Array<OnlineLeaderboardEntry>& entries) const
 {
+    PROFILE_CPU();
     LeaderboardScoresDownloaded_t result;
     if (WaitForCall(_steamUtils, call, result))
         return true;
@@ -611,6 +666,9 @@ bool OnlinePlatformSteam::GetLeaderboardEntries(SteamAPICall_t call, Array<Onlin
 
 void OnlinePlatformSteam::OnUpdate()
 {
+    PROFILE_CPU();
+    PROFILE_MEM(Online);
+
     // TODO: delay StoreStats calls frequency to be once a minute or so
     if (_hasModifiedStats)
     {
