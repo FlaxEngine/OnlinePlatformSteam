@@ -42,12 +42,14 @@ public:
     // [IOnlinePlatform]
     bool Initialize() override;
     void Deinitialize() override;
+    Guid GetGameId() override;
     bool UserLogin(User* localUser) override;
     bool UserLogout(User* localUser) override;
     bool GetUserLoggedIn(User* localUser) override;
     bool GetUser(OnlineUser& user, User* localUser) override;
     bool GetUserAvarar(const OnlineUser& user, Texture*& avatar) override;
     bool GetFriends(Array<OnlineUser, HeapAllocation>& friends, User* localUser) override;
+    bool SetPresence(const StringView& status, User* localUser) override;
     bool GetAchievements(Array<OnlineAchievement, HeapAllocation>& achievements, User* localUser) override;
     bool UnlockAchievement(const StringView& name, User* localUser) override;
     bool UnlockAchievementProgress(const StringView& name, float progress, User* localUser) override;

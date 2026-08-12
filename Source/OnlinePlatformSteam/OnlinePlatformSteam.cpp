@@ -234,6 +234,11 @@ void OnlinePlatformSteam::Deinitialize()
     SteamAPI_Shutdown();
 }
 
+Guid OnlinePlatformSteam::GetGameId()
+{
+    return Guid(_steamUtils ? _steamUtils->GetAppID() : 0, 0, 0, 0);
+}
+
 bool OnlinePlatformSteam::UserLogin(User* localUser)
 {
     PROFILE_CPU();
@@ -304,7 +309,7 @@ bool OnlinePlatformSteam::GetFriends(Array<OnlineUser>& friends, User* localUser
 {
     PROFILE_CPU();
     PROFILE_MEM(Online);
-    if (_steamUser && _steamUser->BLoggedOn())
+    if (_steamUser && _steamUser->BLoggedOn() && _steamFriends)
     {
         const int32 friendsCount = _steamFriends->GetFriendCount(k_EFriendFlagImmediate);
         friends.Resize(friendsCount);
@@ -315,6 +320,44 @@ bool OnlinePlatformSteam::GetFriends(Array<OnlineUser>& friends, User* localUser
             user.Id = GetUserId(friendId);
             user.Name = _steamFriends->GetFriendPersonaName(friendId);
             user.PresenceState = GetUserPresence(_steamFriends->GetFriendPersonaState(friendId));
+            FriendGameInfo_t friendGame;
+            if (_steamFriends->GetFriendGamePlayed(friendId, &friendGame))
+            {
+                user.GameId = Guid(friendGame.m_gameID.AppID(), 0, 0, 0);
+            }
+            // TODO: get the game session id (m_steamIDLobby) for future lobby joining support
+            for (int32 j = 0; j < _steamFriends->GetFriendRichPresenceKeyCount(friendId); j++)
+            {
+                const char* key = _steamFriends->GetFriendRichPresenceKeyByIndex(friendId, j);
+                if (StringUtils::CompareIgnoreCase(key, "steam_display") == 0)
+                {
+                    const char* value = _steamFriends->GetFriendRichPresence(friendId, key);
+                    user.PresenceStatus = value;
+                    break;
+                }
+            }
+        }
+        return false;
+    }
+    return true;
+}
+
+bool OnlinePlatformSteam::SetPresence(const StringView& status, User* localUser)
+{
+    PROFILE_CPU();
+    PROFILE_MEM(Online);
+    if (_steamUser && _steamUser->BLoggedOn() && _steamFriends)
+    {
+        if (status.IsEmpty())
+        {
+            _steamFriends->ClearRichPresence();
+        }
+        else
+        {
+            StringAnsi statusAnsi(status);
+            if (!statusAnsi.StartsWith("#"))
+                statusAnsi = "#" + statusAnsi; // Token names begin with '#'
+            _steamFriends->SetRichPresence("steam_display", statusAnsi.Get());
         }
         return false;
     }
