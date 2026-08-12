@@ -273,7 +273,7 @@ bool OnlinePlatformSteam::GetUser(OnlineUser& user, User* localUser)
     return true;
 }
 
-bool OnlinePlatformSteam::GetUserAvarar(const OnlineUser& user, Texture*& avatar)
+bool OnlinePlatformSteam::GetUserAvatar(const OnlineUser& user, Texture*& avatar)
 {
     PROFILE_CPU();
     PROFILE_MEM(Online);

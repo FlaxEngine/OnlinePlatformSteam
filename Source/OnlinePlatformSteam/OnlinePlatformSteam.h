@@ -47,7 +47,7 @@ public:
     bool UserLogout(User* localUser) override;
     bool GetUserLoggedIn(User* localUser) override;
     bool GetUser(OnlineUser& user, User* localUser) override;
-    bool GetUserAvarar(const OnlineUser& user, Texture*& avatar) override;
+    bool GetUserAvatar(const OnlineUser& user, Texture*& avatar) override;
     bool GetFriends(Array<OnlineUser, HeapAllocation>& friends, User* localUser) override;
     bool SetPresence(const StringView& status, User* localUser) override;
     bool GetAchievements(Array<OnlineAchievement, HeapAllocation>& achievements, User* localUser) override;
